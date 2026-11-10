@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Offline DOCX to JATS XML converter",
-  "author": "DocToXMLJats contributors",
+  "author": "vladisvrau <vladisvrau@users.noreply.github.com>",
   "main": "dist/main.cjs",
   "scripts": {
     "build:renderer": "npm run build:desktop -w @doctoxmljats/web",
@@ -55,9 +55,14 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@xmldom/xmldom": "^0.9.12",
-    "electron": "^45.2.3",
+    "electron": "45.2.3",
     "electron-builder": "^26.18.0",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
+  },
+  "homepage": "https://github.com/vladisvrau/DocToXMLJats",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vladisvrau/DocToXMLJats.git"
   }
 }
