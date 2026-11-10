@@ -179,42 +179,12 @@ export type Locale = keyof typeof LOCALES;
 
 const messages: Record<Locale, Dict> = { en, 'pt-BR': ptBR, es, fr, de };
 
-const BR_ZONES =
-  /^America\/(Sao_Paulo|Bahia|Fortaleza|Recife|Belem|Manaus|Cuiaba|Campo_Grande|Porto_Velho|Rio_Branco|Araguaina|Maceio|Noronha|Boa_Vista|Santarem|Eirunepe)$/;
-const PT_ZONES = /^(Europe\/Lisbon|Atlantic\/(Azores|Madeira))$/;
-const ES_ZONES =
-  /^(America\/(Mexico_City|Bogota|Lima|Santiago|Caracas|Montevideo|Asuncion|La_Paz|Guayaquil|Havana|Panama|Costa_Rica|Guatemala|El_Salvador|Tegucigalpa|Managua|Santo_Domingo|Monterrey|Merida|Cancun|Tijuana|Argentina\/.+)|Europe\/Madrid|Atlantic\/Canary|Africa\/Ceuta|Pacific\/Galapagos)$/;
-const FR_ZONES = /^(Europe\/(Paris|Monaco)|America\/(Martinique|Guadeloupe|Cayenne)|Indian\/Reunion)$/;
-const DE_ZONES = /^Europe\/(Berlin|Vienna|Zurich|Busingen|Vaduz)$/;
-
 /**
- * Local, network-free hint about where the user is, from the system time zone.
- * Used only when none of the browser's preferred languages is supported.
+ * Pick the best supported locale from the browser's preferred languages (navigator.languages),
+ * in order; English is the fallback. No IP or time-zone guessing: the browser setting is what
+ * the user actually chose, and IP lookups would need a third-party request.
  */
-export function localeFromTimeZone(tz: string | undefined): Locale | null {
-  if (!tz) return null;
-  if (BR_ZONES.test(tz) || PT_ZONES.test(tz)) return 'pt-BR';
-  if (ES_ZONES.test(tz)) return 'es';
-  if (FR_ZONES.test(tz)) return 'fr';
-  if (DE_ZONES.test(tz)) return 'de';
-  return null;
-}
-
-function systemTimeZone(): string | undefined {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Pick the best supported locale. The user's preferred languages (navigator.languages)
- * win; the system time zone is only a fallback; English is the last resort.
- * Deliberately no IP geolocation: that needs a third-party request, which would break
- * the "nothing leaves your device" guarantee (and the site's CSP).
- */
-export function matchLocale(tags: readonly string[], timeZone: string | undefined = systemTimeZone()): Locale {
+export function matchLocale(tags: readonly string[]): Locale {
   for (const tag of tags) {
     const lower = tag.toLowerCase();
     const exact = (Object.keys(LOCALES) as Locale[]).find((l) => l.toLowerCase() === lower);
@@ -224,7 +194,7 @@ export function matchLocale(tags: readonly string[], timeZone: string | undefine
     const byBase = (Object.keys(LOCALES) as Locale[]).find((l) => l.toLowerCase() === base);
     if (byBase) return byBase;
   }
-  return localeFromTimeZone(timeZone) ?? 'en';
+  return 'en';
 }
 
 let current: Locale = 'en';
