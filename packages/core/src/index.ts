@@ -10,12 +10,56 @@ export interface ConvertOptions {
   parser?: XmlParser;
 }
 
+export type WarningCode = 'equations' | 'images' | 'vmerge';
+export type ErrorCode = 'not-zip' | 'not-word' | 'no-body' | 'no-parser';
+
+export interface ConvertWarning {
+  /** Stable code so UIs can translate the message. */
+  code: WarningCode;
+  /** English fallback text. */
+  message: string;
+}
+
+/** Thrown for unusable input. `code` is stable and translatable; `message` is English. */
+export class ConvertError extends Error {
+  constructor(
+    public readonly code: ErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ConvertError';
+  }
+}
+
+const WARNING_TEXT: Record<WarningCode, string> = {
+  equations: 'Equations (OMML) were skipped; MathML conversion is not implemented yet.',
+  images: 'Images and embedded objects were skipped; figure support is not implemented yet.',
+  vmerge: 'Vertically merged table cells are not fully supported (rowspan is not emitted).',
+};
+
 export interface ConvertResult {
   xml: string;
   title: string;
+  /** BCP 47 language detected from the document (e.g. "pt-BR"), if any. */
+  language?: string;
   /** Things in the document we could not (yet) represent in JATS. */
-  warnings: string[];
+  warnings: ConvertWarning[];
 }
+
+/** Section headings that introduce an abstract, mapped to their language. Keys are lowercase, accent-free. */
+const ABSTRACT_HEADINGS: Record<string, string> = {
+  abstract: 'en',
+  resumo: 'pt',
+  resumen: 'es',
+  resume: 'fr',
+  zusammenfassung: 'de',
+};
+const fold = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[:.\s]+$/g, '')
+    .toLowerCase();
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -70,7 +114,10 @@ interface ListItem {
 }
 
 class Converter {
-  warnings = new Set<string>();
+  private warned = new Set<WarningCode>();
+  private warn(code: WarningCode) {
+    this.warned.add(code);
+  }
   private styles = new Map<string, StyleInfo>();
   private numbering = new Map<string, Map<number, boolean>>(); // numId -> ilvl -> ordered?
   private rels = new Map<string, string>();
@@ -86,15 +133,16 @@ class Converter {
   convert(): ConvertResult {
     const doc = this.parse(this.files['word/document.xml']);
     const body = doc ? kid(doc.documentElement, 'body') : null;
-    if (!body) throw new Error('Not a valid .docx: word/document.xml has no body.');
+    if (!body || !doc) throw new ConvertError('no-body', 'Not a valid .docx: word/document.xml has no body.');
 
     this.loadStyles();
     this.loadNumbering();
     this.loadRels();
     this.loadFootnotes();
 
-    const { title, abstractHtml, bodyHtml } = this.convertBody(body);
+    const { title, abstracts, bodyHtml } = this.convertBody(body);
     const core = this.parse(this.files['docProps/core.xml']);
+    const language = this.detectLanguage(doc, core);
     const metaTitle = core?.getElementsByTagName('dc:title')[0]?.textContent?.trim() ?? '';
     const creators = (core?.getElementsByTagName('dc:creator')[0]?.textContent ?? '')
       .split(';')
@@ -114,17 +162,40 @@ class Converter {
     const xml =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.3 20210610//EN" "JATS-archivearticle1-3-mathml3.dtd">\n` +
-      `<article xmlns:xlink="http://www.w3.org/1999/xlink" article-type="research-article" dtd-version="1.3" xml:lang="en">` +
+      `<article xmlns:xlink="http://www.w3.org/1999/xlink" article-type="research-article" dtd-version="1.3"${language ? ` xml:lang="${escAttr(language)}"` : ''}>` +
       `<front><article-meta><title-group><article-title>${finalTitle}</article-title></title-group>` +
       contribs +
-      (abstractHtml ? `<abstract>${abstractHtml}</abstract>` : '') +
+      abstracts
+        .filter((a) => a.buf.length)
+        .map((a, i) => {
+          const tag = i === 0 ? 'abstract' : 'trans-abstract';
+          return `<${tag} xml:lang="${a.lang}">${a.buf.join('')}</${tag}>`;
+        })
+        .join('') +
       `</article-meta></front><body>${bodyHtml}</body>${fnGroup}</article>\n`;
 
     return {
       xml,
       title: finalTitle.replace(/<[^>]+>/g, ''),
-      warnings: [...this.warnings],
+      ...(language ? { language } : {}),
+      warnings: [...this.warned].map((code) => ({ code, message: WARNING_TEXT[code] })),
     };
+  }
+
+  /** Most common explicit run language, else the document default, else dc:language. */
+  private detectLanguage(doc: Document, core: Document | null): string | undefined {
+    const valid = (v: string | null) => (v && !/^(zxx|none)$/i.test(v) ? v : null);
+    const counts = new Map<string, number>();
+    for (const l of Array.from(doc.getElementsByTagName('w:lang'))) {
+      const v = valid(l.getAttribute('w:val'));
+      if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (top) return top;
+    const styles = this.parse(this.files['word/styles.xml']);
+    const def = valid(styles?.getElementsByTagName('w:lang')[0]?.getAttribute('w:val') ?? null);
+    if (def) return def;
+    return core?.getElementsByTagName('dc:language')[0]?.textContent?.trim() || undefined;
   }
 
   // ---------- package parts ----------
@@ -261,7 +332,7 @@ class Converter {
           break;
         case 'oMath':
         case 'oMathPara':
-          this.warnings.add('Equations (OMML) were skipped; MathML conversion is not implemented yet.');
+          this.warn('equations');
           break;
       }
     }
@@ -298,7 +369,7 @@ class Converter {
         case 'drawing':
         case 'pict':
         case 'object':
-          this.warnings.add('Images and embedded objects were skipped; figure support is not implemented yet.');
+          this.warn('images');
           break;
       }
     }
@@ -341,7 +412,7 @@ class Converter {
     const cell = (tc: El, tag: 'td' | 'th') => {
       const span = Number(wval(kid(kid(tc, 'tcPr'), 'gridSpan')) ?? 1);
       if (kid(kid(tc, 'tcPr'), 'vMerge')) {
-        this.warnings.add('Vertically merged table cells are not fully supported (rowspan is not emitted).');
+        this.warn('vmerge');
       }
       const html = kids(tc, 'p')
         .map((p) => this.inline(p).trim())
@@ -388,12 +459,12 @@ class Converter {
       buf: string[];
     }
     const stack: Sec[] = [{ id: 0, level: 0, title: '', buf: [] }];
-    const abstractBuf: string[] = [];
-    let inAbstract = false;
+    const abstracts: { lang: string; buf: string[] }[] = [];
+    let currentAbstract: { lang: string; buf: string[] } | null = null;
     let title = '';
     let pendingList: ListItem[] = [];
 
-    const out = () => (inAbstract ? abstractBuf : stack[stack.length - 1]!.buf);
+    const out = () => (currentAbstract ? currentAbstract.buf : stack[stack.length - 1]!.buf);
     const flushList = () => {
       if (pendingList.length) out().push(this.renderList(pendingList));
       pendingList = [];
@@ -429,11 +500,13 @@ class Converter {
         if (!title) title = html;
         else out().push(`<p>${html}</p>`);
       } else if (cls.kind === 'heading') {
-        if (/^abstract$/i.test(html.replace(/<[^>]+>/g, '').trim())) {
+        const abstractLang = ABSTRACT_HEADINGS[fold(html.replace(/<[^>]+>/g, ''))];
+        if (abstractLang) {
           closeTo(cls.level);
-          inAbstract = true;
+          currentAbstract = { lang: abstractLang, buf: [] };
+          abstracts.push(currentAbstract);
         } else {
-          inAbstract = false;
+          currentAbstract = null;
           closeTo(cls.level);
           stack.push({ id: ++this.secCounter, level: cls.level, title: html, buf: [] });
         }
@@ -443,10 +516,9 @@ class Converter {
     }
     flushList();
     closeTo(1);
-    inAbstract = false;
     return {
       title,
-      abstractHtml: abstractBuf.join(''),
+      abstracts,
       bodyHtml: stack[0]!.buf.join(''),
     };
   }
@@ -457,10 +529,10 @@ export function convertDocx(data: Uint8Array, options: ConvertOptions = {}): Con
   try {
     files = unzipSync(data, { filter: (f) => WANTED.has(f.name) });
   } catch {
-    throw new Error('This file is not a valid .docx (could not open it as a zip archive).');
+    throw new ConvertError('not-zip', 'This file is not a valid .docx (could not open it as a zip archive).');
   }
   if (!files['word/document.xml']) {
-    throw new Error('This file is not a Word document (word/document.xml is missing).');
+    throw new ConvertError('not-word', 'This file is not a Word document (word/document.xml is missing).');
   }
 
   const parser: XmlParser =
@@ -468,7 +540,7 @@ export function convertDocx(data: Uint8Array, options: ConvertOptions = {}): Con
     (typeof DOMParser !== 'undefined'
       ? new DOMParser()
       : (() => {
-          throw new Error('No DOMParser available: pass options.parser.');
+          throw new ConvertError('no-parser', 'No DOMParser available: pass options.parser.');
         })());
 
   const parse = (bytes?: Uint8Array) =>

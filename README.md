@@ -38,3 +38,9 @@ Unsigned installers trigger SmartScreen/Gatekeeper warnings. Code signing is a l
 Supported: title, abstract, nested sections from heading styles / outline levels, paragraphs, bold/italic/underline/strike/sub/sup, ordered and bullet lists (nested), hyperlinks, footnotes, tables (header row, colspan), author/title from document properties.
 
 Not yet: images/figures, equations (OMML→MathML), references/citations, rowspan, comments/tracked changes. These are reported as warnings in the UI rather than failing silently. The output is JATS 1.3 Archiving-shaped but not yet validated against the DTD.
+
+## Languages
+
+The website and desktop UI are translated into English, Português (Brasil), Español, Français and Deutsch. The language is picked from the browser/OS and can be changed with the selector (remembered locally). To add a language, add a dictionary to `apps/web/src/i18n.ts`; TypeScript fails the build if any key is missing.
+
+The converter reads the document's language (Word's per-run language, else the default, else document properties) into `xml:lang`, and omits it when none is declared. Abstract headings in English, Portuguese, Spanish, French and German are recognised (extra ones become `trans-abstract`). Native OS dialogs in the desktop app (file filters) are still English.

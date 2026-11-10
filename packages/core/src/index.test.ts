@@ -43,7 +43,7 @@ describe('convertDocx', () => {
     const { xml, title } = convertDocx(docx(body, { 'word/styles.xml': styles }), { parser });
     expect(title).toBe('My Paper');
     expect(xml).toContain('<article-title>My Paper</article-title>');
-    expect(xml).toContain('<abstract><p>Short summary.</p></abstract>');
+    expect(xml).toContain('<abstract xml:lang="en"><p>Short summary.</p></abstract>');
     expect(xml).toContain('<sec id="sec-1"><title>Intro</title><p>Hello &amp; &lt;world&gt;</p><sec id="sec-2"><title>Background</title><p>Deep text</p></sec></sec>');
     expect(xml).toContain('<title>Methods</title><p>Done</p>');
   });
@@ -89,6 +89,37 @@ describe('convertDocx', () => {
 
   it('warns about unsupported content', () => {
     const { warnings } = convertDocx(docx(`<w:p><w:r><w:drawing/></w:r><w:r><w:t>x</w:t></w:r></w:p>`), { parser });
-    expect(warnings.join()).toMatch(/Images/);
+    expect(warnings.map((w) => w.code)).toEqual(['images']);
+  });
+
+  it('throws translatable error codes', () => {
+    expect(() => convertDocx(new Uint8Array([1, 2, 3]), { parser })).toThrowError(expect.objectContaining({ code: 'not-zip' }));
+  });
+
+  it('detects the document language and recognises localized abstracts', () => {
+    const lang = (v: string) => `<w:lang w:val="${v}"/>`;
+    const body =
+      p('Título', 'Title') +
+      p('Resumo', 'Heading1') +
+      p('Texto do resumo.', undefined, lang('pt-BR')) +
+      p('Abstract', 'Heading1') +
+      p('English summary.', undefined, lang('pt-BR')) +
+      p('Introdução', 'Heading1') +
+      p('Corpo.', undefined, lang('pt-BR')) +
+      p('Résumé', 'Heading1') +
+      p('Fr.', undefined, lang('en-US'));
+    const { xml, language } = convertDocx(docx(body, { 'word/styles.xml': styles }), { parser });
+    expect(language).toBe('pt-BR');
+    expect(xml).toContain('xml:lang="pt-BR"');
+    expect(xml).toContain('<abstract xml:lang="pt"><p>Texto do resumo.</p></abstract>');
+    expect(xml).toContain('<trans-abstract xml:lang="en"><p>English summary.</p></trans-abstract>');
+    expect(xml).toContain('<trans-abstract xml:lang="fr"><p>Fr.</p></trans-abstract>');
+    expect(xml).toContain('<title>Introdução</title><p>Corpo.</p>');
+  });
+
+  it('omits xml:lang when the document declares no language', () => {
+    const { xml, language } = convertDocx(docx(p('x')), { parser });
+    expect(language).toBeUndefined();
+    expect(xml).not.toContain('xml:lang');
   });
 });
