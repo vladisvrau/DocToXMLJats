@@ -28,9 +28,8 @@ Ideas: auto-update via `electron-updater` (GitHub Releases), watch-folder mode, 
 
 ## Releasing the desktop app
 
-1. Replace `OWNER` in `apps/web/src/config.ts` with the GitHub account that owns the repo.
-2. `git tag v0.1.0 && git push --tags` — `.github/workflows/release.yml` builds Windows, macOS and Linux installers and attaches them to a GitHub Release.
-3. The website's download button links to `releases/latest`. The website itself deploys to GitHub Pages from `main` (enable Pages → "GitHub Actions" in repo settings).
+1. `git tag v0.1.0 && git push --tags` — `.github/workflows/release.yml` builds Windows, macOS and Linux installers and attaches them to a GitHub Release.
+2. The website's download button links to `releases/latest`. The website itself deploys to GitHub Pages from `main` (enable Pages → "GitHub Actions" in repo settings).
 
 Unsigned installers trigger SmartScreen/Gatekeeper warnings. Code signing is a later decision.
 
