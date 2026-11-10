@@ -46,7 +46,8 @@
         "AppImage",
         "deb"
       ],
-      "category": "Office"
+      "category": "Office",
+      "executableName": "doctoxmljats"
     },
     "publish": {
       "provider": "github"
