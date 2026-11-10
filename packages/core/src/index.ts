@@ -5,9 +5,31 @@ export interface XmlParser {
   parseFromString(source: string, mimeType: string): Document;
 }
 
+export type JatsVariant = 'archiving' | 'publishing' | 'authoring';
+export const JATS_VARIANTS: readonly JatsVariant[] = ['archiving', 'publishing', 'authoring'];
+export const DEFAULT_JATS_VARIANT: JatsVariant = 'archiving';
+
+/** DOCTYPE identifiers for JATS 1.3 (with MathML 3). */
+const DOCTYPES: Record<JatsVariant, { publicId: string; systemId: string }> = {
+  archiving: {
+    publicId: '-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.3 20210610//EN',
+    systemId: 'JATS-archivearticle1-3-mathml3.dtd',
+  },
+  publishing: {
+    publicId: '-//NLM//DTD JATS (Z39.96) Journal Publishing DTD with MathML3 v1.3 20210610//EN',
+    systemId: 'JATS-journalpublishing1-3-mathml3.dtd',
+  },
+  authoring: {
+    publicId: '-//NLM//DTD JATS (Z39.96) Article Authoring DTD with MathML3 v1.3 20210610//EN',
+    systemId: 'JATS-articleauthoring1-3-mathml3.dtd',
+  },
+};
+
 export interface ConvertOptions {
   /** Supply a parser when no global DOMParser exists (Node / Electron main). */
   parser?: XmlParser;
+  /** Which JATS tag set to declare. Defaults to "archiving". */
+  variant?: JatsVariant;
 }
 
 export type WarningCode = 'equations' | 'images' | 'vmerge';
@@ -39,6 +61,7 @@ const WARNING_TEXT: Record<WarningCode, string> = {
 
 export interface ConvertResult {
   xml: string;
+  variant: JatsVariant;
   title: string;
   /** BCP 47 language detected from the document (e.g. "pt-BR"), if any. */
   language?: string;
@@ -128,6 +151,7 @@ class Converter {
   constructor(
     private parse: (bytes?: Uint8Array) => Document | null,
     private files: Record<string, Uint8Array>,
+    private variant: JatsVariant,
   ) {}
 
   convert(): ConvertResult {
@@ -161,7 +185,7 @@ class Converter {
 
     const xml =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.3 20210610//EN" "JATS-archivearticle1-3-mathml3.dtd">\n` +
+      `<!DOCTYPE article PUBLIC "${DOCTYPES[this.variant].publicId}" "${DOCTYPES[this.variant].systemId}">\n` +
       `<article xmlns:xlink="http://www.w3.org/1999/xlink" article-type="research-article" dtd-version="1.3"${language ? ` xml:lang="${escAttr(language)}"` : ''}>` +
       `<front><article-meta><title-group><article-title>${finalTitle}</article-title></title-group>` +
       contribs +
@@ -176,6 +200,7 @@ class Converter {
 
     return {
       xml,
+      variant: this.variant,
       title: finalTitle.replace(/<[^>]+>/g, ''),
       ...(language ? { language } : {}),
       warnings: [...this.warned].map((code) => ({ code, message: WARNING_TEXT[code] })),
@@ -546,5 +571,7 @@ export function convertDocx(data: Uint8Array, options: ConvertOptions = {}): Con
   const parse = (bytes?: Uint8Array) =>
     bytes ? parser.parseFromString(strFromU8(bytes).replace(/^﻿/, ''), 'application/xml') : null;
 
-  return new Converter(parse, files).convert();
+  const variant = options.variant ?? DEFAULT_JATS_VARIANT;
+  if (!JATS_VARIANTS.includes(variant)) throw new RangeError(`Unknown JATS variant: ${String(variant)}`);
+  return new Converter(parse, files, variant).convert();
 }

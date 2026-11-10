@@ -13,7 +13,7 @@ export interface BatchSummary {
 export interface DesktopApi {
   openFile(): Promise<OpenedFile | null>;
   saveXml(suggestedName: string, xml: string): Promise<string | null>;
-  convertFolder(): Promise<BatchSummary | null>;
+  convertFolder(variant: 'archiving' | 'publishing' | 'authoring'): Promise<BatchSummary | null>;
   /** File passed on launch ("Open with…" / double-click), if any. */
   getLaunchFile(): Promise<OpenedFile | null>;
   /** Files opened while the app is already running. */

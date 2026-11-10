@@ -44,3 +44,15 @@ Not yet: images/figures, equations (OMML→MathML), references/citations, rowspa
 The website and desktop UI are translated into English, Português (Brasil), Español, Français and Deutsch. The language is picked from the browser/OS preferences and can be changed with the selector (remembered locally). To add a language, add a dictionary to `apps/web/src/i18n.ts`; TypeScript fails the build if any key is missing.
 
 The converter reads the document's language (Word's per-run language, else the default, else document properties) into `xml:lang`, and omits it when none is declared. Abstract headings in English, Portuguese, Spanish, French and German are recognised (extra ones become `trans-abstract`). Native OS dialogs in the desktop app (file filters) are still English.
+
+## JATS variants
+
+Choose the tag set to declare in the website or desktop app (the choice is remembered; changing it re-converts the open document, and the desktop folder conversion uses it too). In code: `convertDocx(data, { variant })`.
+
+| Variant | DOCTYPE | Notes |
+| --- | --- | --- |
+| `archiving` (default) | Journal Archiving and Interchange | Most permissive. |
+| `publishing` | Journal Publishing | Stricter, for journal production. |
+| `authoring` | Article Authoring | Lightweight; journal metadata optional. |
+
+Right now only the DOCTYPE changes; the body is the same for all three. Archiving and Publishing require `<journal-meta>` (and more), which we do not generate yet, so only Authoring is expected to validate until the metadata form and validation features exist.

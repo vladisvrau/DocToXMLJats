@@ -1,4 +1,4 @@
-import { convertDocx, type XmlParser } from '@doctoxmljats/core';
+import { convertDocx, JATS_VARIANTS, type JatsVariant, type XmlParser } from '@doctoxmljats/core';
 import { DOMParser } from '@xmldom/xmldom';
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -99,7 +99,10 @@ ipcMain.handle('file:save-xml', async (_e, name: string, xml: string) => {
   return r.filePath;
 });
 
-ipcMain.handle('batch:convert-folder', async () => {
+ipcMain.handle('batch:convert-folder', async (_e, requested: string) => {
+  // The renderer is untrusted input: only accept a known variant.
+  const variant = JATS_VARIANTS.find((v) => v === requested) as JatsVariant | undefined;
+  if (!variant) throw new Error('Unknown JATS variant');
   const r = await dialog.showOpenDialog(win!, { properties: ['openDirectory'] });
   const dir = r.filePaths[0];
   if (r.canceled || !dir) return null;
@@ -113,7 +116,7 @@ ipcMain.handle('batch:convert-folder', async () => {
   const failed: { file: string; error: string }[] = [];
   for (const f of files) {
     try {
-      const { xml } = convertDocx(new Uint8Array(await readFile(path.join(dir, f.name))), { parser });
+      const { xml } = convertDocx(new Uint8Array(await readFile(path.join(dir, f.name))), { parser, variant });
       await writeFile(path.join(outDir, f.name.replace(DOCX, '.xml')), xml, 'utf8');
       converted++;
     } catch (err) {

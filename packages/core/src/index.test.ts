@@ -117,6 +117,27 @@ describe('convertDocx', () => {
     expect(xml).toContain('<title>Introdução</title><p>Corpo.</p>');
   });
 
+  it('declares the requested JATS variant (archiving by default)', () => {
+    const data = docx(p('x'));
+    const doctype = (v?: 'archiving' | 'publishing' | 'authoring') =>
+      /<!DOCTYPE article PUBLIC "([^"]+)" "([^"]+)">/.exec(convertDocx(data, { parser, ...(v ? { variant: v } : {}) }).xml)!.slice(1);
+    expect(doctype()).toEqual([
+      '-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.3 20210610//EN',
+      'JATS-archivearticle1-3-mathml3.dtd',
+    ]);
+    expect(doctype('publishing')).toEqual([
+      '-//NLM//DTD JATS (Z39.96) Journal Publishing DTD with MathML3 v1.3 20210610//EN',
+      'JATS-journalpublishing1-3-mathml3.dtd',
+    ]);
+    expect(doctype('authoring')).toEqual([
+      '-//NLM//DTD JATS (Z39.96) Article Authoring DTD with MathML3 v1.3 20210610//EN',
+      'JATS-articleauthoring1-3-mathml3.dtd',
+    ]);
+    expect(convertDocx(data, { parser, variant: 'authoring' }).variant).toBe('authoring');
+    // @ts-expect-error invalid variant
+    expect(() => convertDocx(data, { parser, variant: 'nope' })).toThrow(RangeError);
+  });
+
   it('omits xml:lang when the document declares no language', () => {
     const { xml, language } = convertDocx(docx(p('x')), { parser });
     expect(language).toBeUndefined();

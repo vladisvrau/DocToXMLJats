@@ -1,4 +1,4 @@
-import { ConvertError, convertDocx, type WarningCode } from '@doctoxmljats/core';
+import { ConvertError, convertDocx, DEFAULT_JATS_VARIANT, JATS_VARIANTS, type JatsVariant, type WarningCode } from '@doctoxmljats/core';
 import { DOWNLOAD_URL } from './config';
 import type { OpenedFile } from './desktop';
 import { type Key, type Locale, LOCALES, matchLocale, setLocale, t } from './i18n';
@@ -9,6 +9,9 @@ const desktop = window.desktop;
 
 let currentName = 'document';
 let currentXml = '';
+// Kept in memory only so changing the variant can re-convert the same document.
+let lastFile: { name: string; data: Uint8Array } | null = null;
+let variant: JatsVariant = DEFAULT_JATS_VARIANT;
 
 // What the status line and warnings currently show, kept as keys so a language
 // switch can re-render them instead of leaving stale text.
@@ -16,17 +19,18 @@ let statusState: { key: Key; params?: Record<string, string | number>; error?: b
 let warningCodes: WarningCode[] = [];
 
 const LANG_STORAGE_KEY = 'doctoxmljats.lang';
+const VARIANT_STORAGE_KEY = 'doctoxmljats.variant';
 const storage = {
-  get: () => {
+  get: (key: string) => {
     try {
-      return localStorage.getItem(LANG_STORAGE_KEY);
+      return localStorage.getItem(key);
     } catch {
       return null;
     }
   },
-  set: (v: string) => {
+  set: (key: string, v: string) => {
     try {
-      localStorage.setItem(LANG_STORAGE_KEY, v);
+      localStorage.setItem(key, v);
     } catch {
       /* private mode etc.: the choice just won't persist */
     }
@@ -65,17 +69,19 @@ function applyLocale(locale: Locale) {
     el.textContent = t(el.dataset.i18n as Key);
   }
   $<HTMLSelectElement>('lang').value = locale;
+  $('variant-help').textContent = t(`variantHelp.${variant}`);
   renderStatus();
   renderWarnings();
   if (!desktop) renderDownloadLink();
 }
 
 async function handle(name: string, data: Uint8Array) {
+  lastFile = { name, data };
   status('converting', { name });
   // Let the status paint before the (synchronous) conversion starts.
   await new Promise((r) => setTimeout(r, 0));
   try {
-    const result = convertDocx(data);
+    const result = convertDocx(data, { variant });
     currentName = name.replace(/\.docx$/i, '');
     currentXml = result.xml;
     $('xml').textContent = result.xml;
@@ -101,10 +107,31 @@ for (const [code, label] of Object.entries(LOCALES)) {
 }
 select.addEventListener('change', () => {
   const l = select.value as Locale;
-  storage.set(l);
+  storage.set(LANG_STORAGE_KEY, l);
   applyLocale(l);
 });
-const stored = storage.get();
+
+// --- JATS variant ---
+const variantSelect = $<HTMLSelectElement>('variant');
+const VARIANT_LABELS: Record<JatsVariant, string> = {
+  archiving: 'Archiving',
+  publishing: 'Publishing',
+  authoring: 'Authoring',
+};
+for (const v of JATS_VARIANTS) {
+  variantSelect.append(Object.assign(document.createElement('option'), { value: v, textContent: VARIANT_LABELS[v] }));
+}
+const storedVariant = storage.get(VARIANT_STORAGE_KEY);
+if (JATS_VARIANTS.includes(storedVariant as JatsVariant)) variant = storedVariant as JatsVariant;
+variantSelect.value = variant;
+variantSelect.addEventListener('change', () => {
+  variant = variantSelect.value as JatsVariant;
+  storage.set(VARIANT_STORAGE_KEY, variant);
+  $('variant-help').textContent = t(`variantHelp.${variant}`);
+  if (lastFile) void handle(lastFile.name, lastFile.data);
+});
+
+const stored = storage.get(LANG_STORAGE_KEY);
 applyLocale(stored && stored in LOCALES ? (stored as Locale) : matchLocale(navigator.languages ?? [navigator.language]));
 
 // --- browser input ---
@@ -166,7 +193,7 @@ if (desktop) {
   });
   $('batch').addEventListener('click', async () => {
     status('folderConverting');
-    const s = await desktop.convertFolder();
+    const s = await desktop.convertFolder(variant);
     if (!s) return status(null);
     if (s.failed.length) {
       status(
