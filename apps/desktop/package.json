@@ -47,7 +47,8 @@
         "deb"
       ],
       "category": "Office",
-      "executableName": "doctoxmljats"
+      "executableName": "doctoxmljats",
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
     },
     "publish": {
       "provider": "github"
