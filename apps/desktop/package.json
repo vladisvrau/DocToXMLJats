@@ -1,0 +1,63 @@
+{
+  "name": "@doctoxmljats/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline DOCX to JATS XML converter",
+  "author": "DocToXMLJats contributors",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build:renderer": "npm run build:desktop -w @doctoxmljats/web",
+    "build:main": "esbuild src/main.ts src/preload.ts --bundle --platform=node --format=cjs --external:electron --outdir=dist --out-extension:.js=.cjs",
+    "build": "npm run build:renderer && npm run build:main",
+    "dev": "npm run build && electron .",
+    "dist": "npm run build && electron-builder",
+    "typecheck": "tsc --noEmit"
+  },
+  "build": {
+    "appId": "app.doctoxmljats.desktop",
+    "productName": "DocToXMLJats",
+    "files": [
+      "dist/**"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "fileAssociations": [
+      {
+        "ext": "docx",
+        "name": "Word document",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    },
+    "publish": {
+      "provider": "github"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@xmldom/xmldom": "^0.9.12",
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

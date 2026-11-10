@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DOCX to JATS XML</title>
+    <meta name="description" content="Convert Word documents to JATS XML entirely in your browser. Nothing is uploaded." />
+  </head>
+  <body>
+    <header>
+      <h1>DOCX → JATS XML</h1>
+      <p class="lede">Converted entirely on your device. Your document is never uploaded.</p>
+    </header>
+
+    <main>
+      <label id="drop" class="drop" for="file">
+        <strong>Drop a .docx here</strong> or click to choose
+        <input id="file" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+      </label>
+
+      <div id="desktop-tools" class="row" hidden>
+        <button id="open-native" type="button">Open…</button>
+        <button id="batch" type="button">Convert a folder…</button>
+      </div>
+
+      <p id="status" role="status" aria-live="polite"></p>
+
+      <section id="result" hidden>
+        <ul id="warnings" class="warnings"></ul>
+        <div class="row">
+          <button id="copy" type="button">Copy XML</button>
+          <button id="save" type="button">Download .xml</button>
+        </div>
+        <pre><code id="xml"></code></pre>
+      </section>
+    </main>
+
+    <aside id="download" class="download">
+      <h2>Prefer a desktop app?</h2>
+      <p>Same converter, plus batch folder conversion, “Open with” support and offline-only operation.</p>
+      <a id="download-link" class="button" href="#">Download the desktop app</a>
+    </aside>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

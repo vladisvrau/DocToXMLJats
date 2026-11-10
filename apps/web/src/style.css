@@ -1,0 +1,85 @@
+:root {
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --muted: #5c5c5c;
+  --card: #fff;
+  --border: #d6d6d6;
+  --accent: #1d5fd1;
+  --accent-fg: #fff;
+  --warn: #8a5a00;
+  --err: #b3261e;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141517;
+    --fg: #ececec;
+    --muted: #a0a0a0;
+    --card: #1d1f22;
+    --border: #3a3d42;
+    --accent: #6ea2ff;
+    --accent-fg: #0b1220;
+    --warn: #e0b04a;
+    --err: #ff8a80;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto;
+  max-width: 60rem;
+  padding: 1.5rem 1rem 3rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+h1 { margin: 0; font-size: 1.75rem; }
+h2 { margin: 0 0 .25rem; font-size: 1.1rem; }
+.lede { margin: .25rem 0 1.5rem; color: var(--muted); }
+
+.drop {
+  display: block;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  cursor: pointer;
+}
+.drop:hover, .drop.over, .drop:focus-within { border-color: var(--accent); }
+
+.row { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
+button, .button {
+  font: inherit;
+  padding: .5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+button:hover, .button:hover { border-color: var(--accent); }
+.download .button { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+#status { min-height: 1.5rem; margin: .75rem 0; color: var(--muted); }
+#status.error { color: var(--err); }
+.warnings { color: var(--warn); padding-left: 1.25rem; }
+.warnings:empty { display: none; }
+
+pre {
+  max-height: 32rem;
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  font-size: .85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.download { margin-top: 2.5rem; padding: 1rem 1.25rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.download p { margin: 0 0 .75rem; color: var(--muted); }
+[hidden] { display: none !important; }
