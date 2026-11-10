@@ -41,6 +41,6 @@ Not yet: images/figures, equations (OMML→MathML), references/citations, rowspa
 
 ## Languages
 
-The website and desktop UI are translated into English, Português (Brasil), Español, Français and Deutsch. The language is picked from the browser/OS and can be changed with the selector (remembered locally). To add a language, add a dictionary to `apps/web/src/i18n.ts`; TypeScript fails the build if any key is missing.
+The website and desktop UI are translated into English, Português (Brasil), Español, Français and Deutsch. The language is picked from the browser/OS preferences (falling back to the system time zone as a location hint, never IP geolocation, which would need a third-party request) and can be changed with the selector (remembered locally). To add a language, add a dictionary to `apps/web/src/i18n.ts`; TypeScript fails the build if any key is missing.
 
 The converter reads the document's language (Word's per-run language, else the default, else document properties) into `xml:lang`, and omits it when none is declared. Abstract headings in English, Portuguese, Spanish, French and German are recognised (extra ones become `trans-abstract`). Native OS dialogs in the desktop app (file filters) are still English.

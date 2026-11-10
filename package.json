@@ -13,7 +13,7 @@
     "dev:desktop": "npm run dev -w @doctoxmljats/desktop",
     "build:desktop": "npm run build -w @doctoxmljats/desktop",
     "dist:desktop": "npm run dist -w @doctoxmljats/desktop",
-    "test": "npm test -w @doctoxmljats/core",
+    "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }
